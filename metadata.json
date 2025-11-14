@@ -1,0 +1,5 @@
+
+{
+  "name": "Video Bounding Box Labeling Tool",
+  "description": "An interactive web application to import a video, draw bounding boxes on frames, and generate timestamped coordinate data in JSON format."
+}
