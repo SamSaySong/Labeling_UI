@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Label } from './types.ts';
-import { UploadIcon, TrashIcon, CopyIcon, CheckIcon, PencilIcon } from './components/icons.tsx';
+import { Label } from './types';
+import { UploadIcon, TrashIcon, CopyIcon, CheckIcon, PencilIcon } from './components/icons';
 
 // Point and Rectangle interfaces are for internal drawing state
 interface Point {
@@ -224,26 +224,42 @@ const App: React.FC = () => {
     2
   );
 
-  const handleCopyJson = () => {
-    navigator.clipboard.writeText(generatedJson);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const handleCopyJson = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(generatedJson);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = generatedJson;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      // Show error message
+      alert('Failed to copy to clipboard');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-200 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
+    <div className="min-h-screen bg-gray-900 text-gray-200 p-3 sm:p-4 lg:p-6">
+      <div className="w-full mx-auto">
+        <header className="mb-6">
           <h1 className="text-3xl sm:text-4xl font-bold text-cyan-400">Video Bounding Box Labeling Tool</h1>
           <p className="mt-2 text-gray-400">Import a video, use the controls to activate labeling, and draw boxes. The tool will generate timestamped coordinates scaled to 1920x1080.</p>
         </header>
 
-        <main className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-3 bg-gray-800 rounded-lg p-4 shadow-2xl flex flex-col">
+        <main className="grid grid-cols-1 lg:grid-cols-11 gap-3">
+          <div className="lg:col-span-8 bg-gray-800 rounded-lg p-4 shadow-2xl flex flex-col">
             {!videoSrc ? (
-              <div className="aspect-video w-full flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg flex-grow">
-                <h2 className="text-xl font-semibold mb-4 text-gray-300">Import Your Video</h2>
-                 <label className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors duration-300 flex items-center">
+              <div className="w-full min-h-[600px] flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg flex-grow">
+                <h2 className="text-base font-semibold mb-4 text-gray-300">Import Your Video</h2>
+                 <label className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors duration-300 flex items-center text-sm">
                     <UploadIcon />
                     <span>Choose File</span>
                     <input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
@@ -251,10 +267,10 @@ const App: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                <div className="flex justify-between items-center mb-3 flex-shrink-0 gap-2">
                     <button
                         onClick={handleToggleLabelingMode}
-                        className={`flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold transition-colors ${
+                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors ${
                             isLabelingMode
                                 ? 'bg-cyan-500 text-white hover:bg-cyan-600'
                                 : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
@@ -262,11 +278,11 @@ const App: React.FC = () => {
                         aria-pressed={isLabelingMode}
                     >
                         <PencilIcon />
-                        <span>{isLabelingMode ? 'Labeling Active' : 'Start Labeling'}</span>
+                        <span className="hidden sm:inline">{isLabelingMode ? 'Label' : 'Label'}</span>
                     </button>
-                    <label className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg cursor-pointer transition-colors duration-300 flex items-center text-sm">
+                    <label className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-2 rounded-lg cursor-pointer transition-colors duration-300 flex items-center text-xs">
                         <UploadIcon />
-                        <span className="ml-2">Upload New</span>
+                        <span className="ml-1 hidden sm:inline">New</span>
                         <input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
                     </label>
                 </div>
@@ -306,9 +322,9 @@ const App: React.FC = () => {
             )}
           </div>
 
-          <div className="lg:col-span-2 bg-gray-800 rounded-lg p-6 shadow-2xl">
-            <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2 text-cyan-400">Generated Labels</h2>
-            <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+          <div className="lg:col-span-3 bg-gray-800 rounded-lg p-4 shadow-2xl flex flex-col">
+            <h2 className="text-lg font-semibold mb-3 border-b border-gray-700 pb-2 text-cyan-400">Generated Labels</h2>
+            <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-2">
               {labels.length === 0 ? (
                 <p className="text-gray-500">No labels created yet.</p>
               ) : (
@@ -318,7 +334,7 @@ const App: React.FC = () => {
                     const h = box.ymax - box.ymin;
 
                     return (
-                        <div key={label.id} className="bg-gray-700 p-3 rounded-lg text-sm group">
+                        <div key={label.id} className="bg-gray-700 p-2 rounded-lg text-xs group">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <p className="font-semibold text-cyan-300">Time: <span className="font-mono text-white">{formatTime(label.timestamp)}</span></p>
@@ -348,8 +364,9 @@ const App: React.FC = () => {
                     <h3 className="text-xl font-semibold text-cyan-400">JSON Output (1920x1080)</h3>
                     <button 
                         onClick={handleCopyJson}
-                        className="flex items-center text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center text-sm bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={labels.length === 0}
+                        type="button"
                     >
                        {isCopied ? <CheckIcon/> : <CopyIcon />}
                        <span className="ml-2">{isCopied ? 'Copied!' : 'Copy'}</span>
