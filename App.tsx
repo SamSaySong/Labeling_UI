@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Label } from './types';
-import { UploadIcon, TrashIcon, CopyIcon, CheckIcon, PencilIcon } from './components/icons';
+import { Label } from './types.ts';
+import { UploadIcon, TrashIcon, CopyIcon, CheckIcon, PencilIcon } from './components/icons.tsx';
 
 // Point and Rectangle interfaces are for internal drawing state
 interface Point {

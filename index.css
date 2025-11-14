@@ -1,0 +1,5 @@
+/* This file is included to prevent a 404 error. Custom styles can be added here if needed. */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
