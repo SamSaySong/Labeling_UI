@@ -16,12 +16,5 @@ export default defineConfig({
     alias: {
       '@': path.resolve(import.meta.url.slice(7), '.'),
     }
-  },
-  build: {
-    rollupOptions: {
-      input: {
-        main: 'standalone.html', // Chỉ định file đầu vào là standalone.html
-      },
-    },
-  },
+  }
 });
