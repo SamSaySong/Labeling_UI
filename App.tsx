@@ -52,7 +52,8 @@ const App: React.FC = () => {
         width: videoRef.current.videoWidth,
         height: videoRef.current.videoHeight,
       });
-      resizeCanvas(); // Ensure canvas is resized on metadata load
+      // Delay canvas resize to ensure video dimensions are properly set
+      setTimeout(() => resizeCanvas(), 100);
     }
   };
   
@@ -104,12 +105,13 @@ const App: React.FC = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const container = video?.parentElement;
-    if (video && canvas && container && video.videoWidth > 0) {
+    if (video && canvas && container && video.videoWidth > 0 && video.videoHeight > 0) {
       const { clientWidth } = container;
       const aspectRatio = video.videoHeight / video.videoWidth;
       canvas.width = clientWidth;
       canvas.height = clientWidth * aspectRatio;
-      draw();
+      // Force redraw after canvas size change
+      setTimeout(() => draw(), 50);
     }
   }, [draw]);
 
@@ -194,6 +196,16 @@ const App: React.FC = () => {
   
   const handleDeleteLabel = (id: string) => {
     setLabels(prev => prev.filter(label => label.id !== id));
+  };
+
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    console.error('Video error:', {
+      error: video.error,
+      errorCode: video.error?.code,
+      errorMessage: video.error?.message,
+      src: video.src,
+    });
   };
 
   const handleToggleLabelingMode = () => {
@@ -295,6 +307,11 @@ const App: React.FC = () => {
                     onLoadedMetadata={handleLoadedMetadata}
                     onTimeUpdate={handleTimeUpdate}
                     onPlay={() => isLabelingMode && setIsLabelingMode(false)}
+                    onLoadStart={(e) => {
+                      console.log('Video loading started', e);
+                    }}
+                    onError={handleVideoError}
+                    crossOrigin="anonymous"
                     />
                     <canvas
                     ref={canvasRef}

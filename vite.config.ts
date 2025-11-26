@@ -6,11 +6,15 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0',
+    headers: {
+      'Accept-Ranges': 'bytes',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+    },
   },
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
+      '@': path.resolve(import.meta.url.slice(7), '.'),
     }
   }
 });

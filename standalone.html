@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Bounding Box Labeling Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="app" class="min-h-screen bg-gray-900 text-gray-200 p-3 sm:p-4 lg:p-6">
+        <div class="w-full mx-auto">
+            <header class="mb-6" id="headerArea">
+                <h1 class="text-3xl sm:text-4xl font-bold text-cyan-400">Video Bounding Box Labeling Tool</h1>
+                <p class="mt-2 text-gray-400">Import a video, use the controls to activate labeling, and draw boxes. The tool will generate timestamped coordinates scaled to 1920x1080.</p>
+            </header>
+
+            <main class="grid grid-cols-1 lg:grid-cols-11 gap-3">
+                <!-- Video Section -->
+                <div class="lg:col-span-8 bg-gray-800 rounded-lg p-4 shadow-2xl flex flex-col">
+                    <div id="videoContainer" style="display: flex; flex-direction: column; gap: 1rem; height: 100%;">
+                        <!-- Upload Area -->
+                        <div class="w-full min-h-[600px] flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg flex-grow" id="uploadArea">
+                            <h2 class="text-base font-semibold mb-4 text-gray-300">Import Your Video</h2>
+                            <label class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors duration-300 flex items-center text-sm">
+                                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M3 17a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm3.172-5.829a1 1 0 11-1.414-1.414L9 10.172V3a1 1 0 112 0v7.172l4.243-4.243a1 1 0 111.414 1.414l-6 6a1 1 0 01-1.414 0l-6-6z"></path></svg>
+                                <span>Choose File</span>
+                                <input type="file" accept="video/*" class="hidden" id="fileInput">
+                            </label>
+                        </div>
+
+                        <!-- Video Player (Hidden initially) -->
+                        <div id="playerArea" style="display: none; flex-direction: column; gap: 1rem;">
+                            <div class="flex justify-between items-center flex-shrink-0 gap-2">
+                                <button id="labelBtn" class="flex items-center gap-1 px-3 py-2 rounded text-xs font-semibold transition-colors bg-gray-700 text-gray-200 hover:bg-gray-600">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path></svg>
+                                    <span>Label</span>
+                                </button>
+                                <label class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg cursor-pointer transition-colors duration-300 flex items-center text-xs gap-1">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 17a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm3.172-5.829a1 1 0 11-1.414-1.414L9 10.172V3a1 1 0 112 0v7.172l4.243-4.243a1 1 0 111.414 1.414l-6 6a1 1 0 01-1.414 0l-6-6z"></path></svg>
+                                    <span>New</span>
+                                    <input type="file" accept="video/*" class="hidden" id="fileInput2">
+                                </label>
+                            </div>
+                            <div class="relative w-full aspect-video bg-black rounded-md">
+                                <video id="videoPlayer" controls class="w-full h-full rounded-md" style="display: block;">
+                                    <source id="videoSource" src="" type="video/mp4">
+                                    Your browser does not support the video tag or the video codec is not supported.
+                                </video>
+                                <canvas id="drawCanvas" class="absolute top-0 left-0 w-full h-full" style="cursor: crosshair; pointer-events: none; display: none;"></canvas>
+                                <div class="absolute bottom-16 sm:bottom-12 right-2 pointer-events-none">
+                                    <div class="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm font-mono" id="timeDisplay">00:00</div>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-400" id="fileNameDisplay"><strong>Now playing:</strong></p>
+                                <p class="text-sm text-gray-500 mt-1" id="instructionText">Activate the label tool to start drawing.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Labels Section -->
+                <div class="lg:col-span-3 bg-gray-800 rounded-lg p-4 shadow-2xl flex flex-col">
+                    <h2 class="text-lg font-semibold mb-3 border-b border-gray-700 pb-2 text-cyan-400">Generated Labels</h2>
+                    <div class="space-y-2 max-h-[50vh] overflow-y-auto pr-2" id="labelsList">
+                        <p class="text-gray-500">No labels created yet.</p>
+                    </div>
+
+                    <div class="mt-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-xl font-semibold text-cyan-400">JSON Output (1920x1080)</h3>
+                            <button id="copyBtn" class="flex items-center text-sm bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <svg id="copyIcon" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M8 3a1 1 0 011-1h2a1 1 0 011 1v1h2V3a3 3 0 00-3-3h-2a3 3 0 00-3 3v1H3a1 1 0 000 2h1v2H3a1 1 0 100 2h1v2H3a1 1 0 100 2h1v1a3 3 0 003 3h2a3 3 0 003-3v-1h2a1 1 0 100-2h-1v-2h1a1 1 0 100-2h-1V7h1a1 1 0 100-2h-1V3z"></path></svg>
+                                <span class="ml-2" id="copyBtnText">Copy</span>
+                            </button>
+                        </div>
+                        <pre class="bg-gray-900 rounded-md p-4 text-xs text-green-300 overflow-auto max-h-48 font-mono"><code id="jsonOutput">[]</code></pre>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let state = {
+            videoSrc: null,
+            videoFileName: '',
+            labels: [],
+            isDrawing: false,
+            isLabelingMode: false,
+            startPoint: null,
+            currentRect: null,
+            currentTime: 0,
+            isCopied: false
+        };
+
+        // DOM elements
+        const elements = {
+            fileInput: document.getElementById('fileInput'),
+            fileInput2: document.getElementById('fileInput2'),
+            videoPlayer: document.getElementById('videoPlayer'),
+            drawCanvas: document.getElementById('drawCanvas'),
+            uploadArea: document.getElementById('uploadArea'),
+            playerArea: document.getElementById('playerArea'),
+            labelBtn: document.getElementById('labelBtn'),
+            timeDisplay: document.getElementById('timeDisplay'),
+            fileNameDisplay: document.getElementById('fileNameDisplay'),
+            instructionText: document.getElementById('instructionText'),
+            labelsList: document.getElementById('labelsList'),
+            jsonOutput: document.getElementById('jsonOutput'),
+            copyBtn: document.getElementById('copyBtn'),
+            copyBtnText: document.getElementById('copyBtnText')
+        };
+
+        // Format time helper
+        function formatTime(time) {
+            if (isNaN(time) || time < 0) return '00:00';
+            const roundedTime = Math.floor(time);
+            const minutes = Math.floor(roundedTime / 60);
+            const seconds = roundedTime % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // File handling
+        function handleFileChange(file) {
+            if (file) {
+                // For local files, use Blob URL instead of data URL
+                const url = URL.createObjectURL(file);
+                state.videoSrc = url;
+                state.videoFileName = file.name;
+                state.labels = [];
+                state.isLabelingMode = false;
+                state.currentTime = 0;
+                
+                // Detect video type
+                let videoType = 'video/mp4';
+                if (file.name.endsWith('.webm')) videoType = 'video/webm';
+                else if (file.name.endsWith('.ogg')) videoType = 'video/ogg';
+                else if (file.name.endsWith('.mov')) videoType = 'video/quicktime';
+                
+                // Set source element for better compatibility
+                const sourceElement = document.getElementById('videoSource');
+                if (sourceElement) {
+                    sourceElement.src = url;
+                    sourceElement.type = videoType;
+                }
+                
+                // Also set src attribute for fallback
+                elements.videoPlayer.src = url;
+                
+                // Force reload
+                elements.videoPlayer.load();
+                
+                elements.uploadArea.style.display = 'none';
+                elements.playerArea.style.display = 'flex';
+                document.getElementById('headerArea').style.display = 'none';
+                elements.fileNameDisplay.innerHTML = `<strong>Now playing:</strong> ${file.name}`;
+                updateUI();
+            }
+        }
+
+        elements.fileInput.addEventListener('change', (e) => handleFileChange(e.target.files[0]));
+        elements.fileInput2.addEventListener('change', (e) => handleFileChange(e.target.files[0]));
+
+        // Video event handlers
+        elements.videoPlayer.addEventListener('loadedmetadata', () => {
+            setTimeout(() => resizeCanvas(), 100);
+        });
+
+        elements.videoPlayer.addEventListener('timeupdate', () => {
+            state.currentTime = elements.videoPlayer.currentTime;
+            elements.timeDisplay.textContent = formatTime(state.currentTime);
+        });
+
+        elements.videoPlayer.addEventListener('play', () => {
+            if (state.isLabelingMode) {
+                state.isLabelingMode = false;
+                updateUI();
+            }
+        });
+
+        elements.videoPlayer.addEventListener('error', (e) => {
+            const video = elements.videoPlayer;
+            const errorCode = video.error?.code;
+            let errorMsg = 'Unknown error';
+            
+            if (errorCode === 1) errorMsg = 'MEDIA_ERR_ABORTED';
+            else if (errorCode === 2) errorMsg = 'MEDIA_ERR_NETWORK';
+            else if (errorCode === 3) errorMsg = 'MEDIA_ERR_DECODE';
+            else if (errorCode === 4) errorMsg = 'MEDIA_ERR_SRC_NOT_SUPPORTED';
+            
+            console.error('Video error:', {
+                code: errorCode,
+                message: errorMsg,
+                src: video.src
+            });
+            
+            // Try alternative approach for Edge/Safari
+            if (errorCode === 4) {
+                console.warn('Codec not supported. Try MP4 H.264 format');
+            }
+        });
+
+        // Canvas functions
+        const ctx = elements.drawCanvas.getContext('2d');
+
+        function resizeCanvas() {
+            const video = elements.videoPlayer;
+            const canvas = elements.drawCanvas;
+            const container = canvas.parentElement;
+            
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                const { clientWidth } = container;
+                const aspectRatio = video.videoHeight / video.videoWidth;
+                canvas.width = clientWidth;
+                canvas.height = clientWidth * aspectRatio;
+                draw();
+            }
+        }
+
+        function draw() {
+            const canvas = elements.drawCanvas;
+            const video = elements.videoPlayer;
+            
+            if (!canvas || !video || video.videoWidth === 0) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (!state.isLabelingMode) return;
+
+            const scaleX = canvas.width / 1920;
+            const scaleY = canvas.height / 1080;
+
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.lineWidth = 2;
+            
+            state.labels.forEach(label => {
+                const { xmin, ymin, xmax, ymax } = label.box;
+                ctx.strokeRect(
+                    xmin * scaleX,
+                    ymin * scaleY,
+                    (xmax - xmin) * scaleX,
+                    (ymax - ymin) * scaleY
+                );
+            });
+
+            if (state.isDrawing && state.currentRect) {
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                ctx.strokeRect(
+                    state.currentRect.x,
+                    state.currentRect.y,
+                    state.currentRect.width,
+                    state.currentRect.height
+                );
+            }
+        }
+
+        // Canvas event handlers
+        function getScaledPoint(e) {
+            const rect = elements.drawCanvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        elements.drawCanvas.addEventListener('mousedown', (e) => {
+            if (!state.isLabelingMode || !elements.videoPlayer.paused) return;
+            
+            state.isDrawing = true;
+            state.startPoint = getScaledPoint(e);
+            state.currentRect = null;
+        });
+
+        elements.drawCanvas.addEventListener('mousemove', (e) => {
+            if (!state.isDrawing || !state.startPoint) return;
+
+            const currentPoint = getScaledPoint(e);
+            state.currentRect = {
+                x: Math.min(state.startPoint.x, currentPoint.x),
+                y: Math.min(state.startPoint.y, currentPoint.y),
+                width: Math.abs(state.startPoint.x - currentPoint.x),
+                height: Math.abs(state.startPoint.y - currentPoint.y)
+            };
+            draw();
+        });
+
+        function finishDrawing() {
+            if (!state.isDrawing || !state.startPoint || !state.currentRect) return;
+            
+            state.isDrawing = false;
+
+            if (state.currentRect.width < 5 || state.currentRect.height < 5) {
+                state.startPoint = null;
+                state.currentRect = null;
+                return;
+            }
+
+            const { width: canvasWidth, height: canvasHeight } = elements.drawCanvas;
+            const targetWidth = 1920;
+            const targetHeight = 1080;
+
+            const scaleX = targetWidth / canvasWidth;
+            const scaleY = targetHeight / canvasHeight;
+
+            const newLabel = {
+                id: new Date().toISOString(),
+                timestamp: state.currentTime,
+                box: {
+                    xmin: Math.round(state.currentRect.x * scaleX),
+                    ymin: Math.round(state.currentRect.y * scaleY),
+                    xmax: Math.round((state.currentRect.x + state.currentRect.width) * scaleX),
+                    ymax: Math.round((state.currentRect.y + state.currentRect.height) * scaleY)
+                }
+            };
+
+            state.labels.push(newLabel);
+            state.startPoint = null;
+            state.currentRect = null;
+            updateUI();
+            draw();
+        }
+
+        elements.drawCanvas.addEventListener('mouseup', finishDrawing);
+        elements.drawCanvas.addEventListener('mouseleave', finishDrawing);
+
+        // Label button toggle
+        elements.labelBtn.addEventListener('click', () => {
+            state.isLabelingMode = !state.isLabelingMode;
+            if (state.isLabelingMode && !elements.videoPlayer.paused) {
+                elements.videoPlayer.pause();
+            }
+            updateUI();
+        });
+
+        // Delete label
+        function deleteLabel(id) {
+            state.labels = state.labels.filter(l => l.id !== id);
+            updateUI();
+        }
+
+        // Copy JSON
+        elements.copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(elements.jsonOutput.textContent);
+                
+                // Change icon and text
+                document.getElementById('copyIcon').innerHTML = '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>';
+                elements.copyBtnText.textContent = 'Copied!';
+                
+                // Add success styling
+                elements.copyBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                elements.copyBtn.classList.remove('bg-cyan-600', 'hover:bg-cyan-700');
+                
+                state.isCopied = true;
+                
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    document.getElementById('copyIcon').innerHTML = '<path d="M8 3a1 1 0 011-1h2a1 1 0 011 1v1h2V3a3 3 0 00-3-3h-2a3 3 0 00-3 3v1H3a1 1 0 000 2h1v2H3a1 1 0 100 2h1v2H3a1 1 0 100 2h1v1a3 3 0 003 3h2a3 3 0 003-3v-1h2a1 1 0 100-2h-1v-2h1a1 1 0 100-2h-1V7h1a1 1 0 100-2h-1V3z"></path>';
+                    elements.copyBtnText.textContent = 'Copy';
+                    elements.copyBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    elements.copyBtn.classList.add('bg-cyan-600', 'hover:bg-cyan-700');
+                    state.isCopied = false;
+                }, 2000);
+            } catch (err) {
+                alert('Failed to copy to clipboard');
+            }
+        });
+
+        // Update UI
+        function updateUI() {
+            // Update label button
+            if (state.isLabelingMode) {
+                elements.labelBtn.className = 'flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors bg-cyan-500 text-white hover:bg-cyan-600';
+            } else {
+                elements.labelBtn.className = 'flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors bg-gray-700 text-gray-200 hover:bg-gray-600';
+            }
+
+            // Update instruction text
+            elements.instructionText.textContent = state.isLabelingMode 
+                ? 'Seek to a frame and draw a box.' 
+                : 'Activate the label tool to start drawing.';
+
+            // Update canvas display and interaction
+            if (state.isLabelingMode) {
+                elements.drawCanvas.style.display = 'block';
+                elements.drawCanvas.style.pointerEvents = 'auto';
+                elements.drawCanvas.style.cursor = 'crosshair';
+            } else {
+                elements.drawCanvas.style.display = 'none';
+                elements.drawCanvas.style.pointerEvents = 'none';
+                elements.drawCanvas.style.cursor = 'default';
+            }
+
+            // Update labels list
+            if (state.labels.length === 0) {
+                elements.labelsList.innerHTML = '<p class="text-gray-500">No labels created yet.</p>';
+            } else {
+                elements.labelsList.innerHTML = state.labels
+                    .slice()
+                    .reverse()
+                    .map(label => {
+                        const box = label.box;
+                        const w = box.xmax - box.xmin;
+                        const h = box.ymax - box.ymin;
+                        return `
+                            <div class="bg-gray-700 p-2 rounded-lg text-xs group">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="font-semibold text-cyan-300">Time: <span class="font-mono text-white">${formatTime(label.timestamp)}</span></p>
+                                        <p class="font-mono text-gray-300 mt-1"><span class="font-sans font-semibold text-gray-400">xywh:</span> ${box.xmin}, ${box.ymin}, ${w}, ${h}</p>
+                                        <p class="font-mono text-gray-300"><span class="font-sans font-semibold text-gray-400">minmax:</span> ${box.xmin}, ${box.ymin}, ${box.xmax}, ${box.ymax}</p>
+                                    </div>
+                                    <button onclick="deleteLabel('${label.id}')" class="text-gray-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join('');
+            }
+
+            // Update JSON output
+            const jsonData = state.labels.map(l => ({
+                eventStart: formatTime(l.timestamp),
+                eventEnd: formatTime(l.timestamp),
+                area: [l.box.xmin, l.box.ymin, l.box.xmax, l.box.ymax]
+            }));
+            elements.jsonOutput.textContent = JSON.stringify(jsonData, null, 2);
+
+            // Update copy button
+            elements.copyBtn.disabled = state.labels.length === 0;
+
+            // Redraw
+            draw();
+        }
+
+        // Window resize listener
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initial UI update
+        updateUI();
+    </script>
+</body>
+</html>
